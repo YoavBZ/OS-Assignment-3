@@ -33,6 +33,14 @@ struct context {
 };
 
 enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
+enum pageState { UNUSED_P, USED_P };
+
+struct page {
+    enum pageState state;
+    pde_t *pgdir;
+    uint virtualAddress;
+    long long order;
+};
 
 // Per-process state
 struct proc {
@@ -52,6 +60,8 @@ struct proc {
 
   //Swap file. must initiate with create swap file
   struct file *swapFile;      //page file
+  struct page pyscPagesMeta[MAX_PYSC_PAGES]; // Physical pages meta-data
+  struct page diskPagesMeta[MAX_TOTAL_PAGES - MAX_PYSC_PAGES]; // Disk pages meta-data
 };
 
 // Process memory is laid out contiguously, low addresses first:

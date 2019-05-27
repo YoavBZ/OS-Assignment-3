@@ -102,6 +102,13 @@ found:
   sp -= sizeof *p->tf;
   p->tf = (struct trapframe*)sp;
 
+  #if !(NONE)
+  //support swap file
+  if (p->pid>2){
+      createSwapFile(p);
+  }
+  #endif
+
   // Set up new context to start executing at forkret,
   // which returns to trapret.
   sp -= 4;
@@ -212,6 +219,31 @@ fork(void)
 
   pid = np->pid;
 
+  #if !(NONE)
+  //copy the memory management arrays of the parent except pgdir
+  if (curproc->pid > 2){
+      cprintf("copy swap\n");
+      for (i = 0; i < MAX_PYSC_PAGES; i++) {
+          np->pyscPagesMeta[i] = curproc->pyscPagesMeta[i];
+          np->pyscPagesMeta[i].pgdir = np->pgdir;
+      }
+      for (i = 0; i < MAX_TOTAL_PAGES - MAX_PYSC_PAGES; i++) {
+          np->diskPagesMeta[i] = curproc->diskPagesMeta[i];
+          np->diskPagesMeta[i].pgdir = np->pgdir;
+      }
+      //copy swap file
+      for (i = 0; i < MAX_TOTAL_PAGES - MAX_PYSC_PAGES ; i++){
+          if (np->diskPagesMeta[i].state == USED_P) {
+              char buff[512];
+              for(int j = 0 ; j<PGSIZE; j+=512) {
+                readFromSwapFile(curproc, buff, i * PGSIZE+j, 512);
+                writeToSwapFile(np, buff, i * PGSIZE+j, 512);
+              }
+          }
+      }
+  }
+  #endif
+
   acquire(&ptable.lock);
 
   np->state = RUNNABLE;
@@ -241,6 +273,13 @@ exit(void)
       curproc->ofile[fd] = 0;
     }
   }
+
+  #if !(NONE)
+  //support swap file
+  if (curproc->pid > 2){
+      removeSwapFile(curproc);
+  }
+  #endif
 
   begin_op();
   iput(curproc->cwd);
@@ -290,6 +329,17 @@ wait(void)
         kfree(p->kstack);
         p->kstack = 0;
         freevm(p->pgdir);
+
+        #if !(NONE)
+        //cleaning memory management arrays
+        for (int i = 0; i < MAX_PYSC_PAGES; i++) {
+            p->pyscPagesMeta[i].state = UNUSED_P;
+        }
+        for (int i = 0; i < MAX_TOTAL_PAGES - MAX_PYSC_PAGES; i++) {
+            p->diskPagesMeta[i].state = UNUSED_P;
+        }
+        #endif
+
         p->pid = 0;
         p->parent = 0;
         p->name[0] = 0;

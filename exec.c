@@ -92,7 +92,19 @@ exec(char *path, char **argv)
     if(*s == '/')
       last = s+1;
   safestrcpy(curproc->name, last, sizeof(curproc->name));
-
+  #if !(NONE)
+  //pgdir update in metadata arrays
+  for (i = 0 ; i < MAX_PYSC_PAGES; i++){
+    if (curproc->pyscPagesMeta[i].state == USED_P){
+        curproc->pyscPagesMeta[i].pgdir = pgdir;
+    }
+  }
+  for (i = 0 ; i < MAX_TOTAL_PAGES - MAX_PYSC_PAGES; i++){
+    if (curproc->diskPagesMeta[i].state == USED_P){
+        curproc->diskPagesMeta[i].pgdir = pgdir;
+    }
+  }
+  #endif
   // Commit to the user image.
   oldpgdir = curproc->pgdir;
   curproc->pgdir = pgdir;
