@@ -7,6 +7,16 @@
 #include "proc.h"
 #include "elf.h"
 
+struct file {
+    enum { FD_NONE, FD_PIPE, FD_INODE } type;
+    int ref; // reference count
+    char readable;
+    char writable;
+    struct pipe *pipe;
+    struct inode *ip;
+    uint off;
+};
+
 extern char data[];  // defined by kernel.ld
 pde_t *kpgdir;  // for use in scheduler()
 long long pageOrder = 0;
@@ -377,16 +387,19 @@ allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
       kfree(mem);
       return 0;
     }
+    cprintf("allocuvm: swap file type: %d, writeable %c\n",myproc()->swapFile->type, myproc()->swapFile->writable);
     #if !(NONE)
+
     // Skipping init & shell processes
     struct proc* p = myproc();
     if (p->pid > 2){
-        int pagesNum = a / PGSIZE;
-        int pageIndex;
-        if (pagesNum <= MAX_PYSC_PAGES){
-            pageIndex = getFreePageIndex(0);
+      int pagesNum = a / PGSIZE;
+      cprintf("allocuvm: pagenum: %d\n",pagesNum);
+      int pageIndex;
+      if (pagesNum <= MAX_PYSC_PAGES){
+          pageIndex = getFreePageIndex(0);
         } else {
-            // Free space to the new page
+          // Free space to the new page
             pageIndex = swapOut();
         }
         p->pyscPagesMeta[pageIndex].state = USED_P;

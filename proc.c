@@ -222,7 +222,6 @@ fork(void)
   #if !(NONE)
   //copy the memory management arrays of the parent except pgdir
   if (curproc->pid > 2){
-      cprintf("copy swap\n");
       for (i = 0; i < MAX_PYSC_PAGES; i++) {
           np->pyscPagesMeta[i] = curproc->pyscPagesMeta[i];
           np->pyscPagesMeta[i].pgdir = np->pgdir;
@@ -334,9 +333,16 @@ wait(void)
         //cleaning memory management arrays
         for (int i = 0; i < MAX_PYSC_PAGES; i++) {
             p->pyscPagesMeta[i].state = UNUSED_P;
+            p->pyscPagesMeta[i].order = 0;
+            p->pyscPagesMeta[i].pgdir = 0;
+            p->pyscPagesMeta[i].virtualAddress = 0;
+
         }
         for (int i = 0; i < MAX_TOTAL_PAGES - MAX_PYSC_PAGES; i++) {
-            p->diskPagesMeta[i].state = UNUSED_P;
+          p->diskPagesMeta[i].state = UNUSED_P;
+          p->diskPagesMeta[i].order = 0;
+          p->diskPagesMeta[i].pgdir = 0;
+          p->diskPagesMeta[i].virtualAddress = 0;
         }
         #endif
 

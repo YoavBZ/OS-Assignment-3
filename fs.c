@@ -795,7 +795,8 @@ int
 writeToSwapFile(struct proc * p, char* buffer, uint placeOnFile, uint size)
 {
   p->swapFile->off = placeOnFile;
-
+  procdump();
+  cprintf("filewrite: type %d, size %d\n", p->swapFile->type, size);
   return filewrite(p->swapFile, buffer, size);
 
 }
