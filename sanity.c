@@ -19,12 +19,13 @@ void systemTest() {
 void sbrkTest() {
   printf(0, "Testing sbrk()\n");
   sbrk(0);
+  sbrk(1);
   printf(0, "Finished sbrk testings!\n");
 }
 
 int main() {
   // System Test
-  // systemTest();
+   systemTest();
 
   // Test
   sbrkTest();

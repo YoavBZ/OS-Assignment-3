@@ -38,10 +38,10 @@ struct cpu*
 mycpu(void)
 {
   int apicid, i;
-  
+
   if(readeflags()&FL_IF)
     panic("mycpu called with interrupts enabled\n");
-  
+
   apicid = lapicid();
   // APIC IDs are not guaranteed to be contiguous. Maybe we should have
   // a reverse map, or reserve a register to store &cpus[i].
@@ -88,6 +88,8 @@ allocproc(void)
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
+  p->pageFaultNum = 0;
+  p->pageOutNum = 0;
 
   release(&ptable.lock);
 
@@ -131,7 +133,7 @@ userinit(void)
   extern char _binary_initcode_start[], _binary_initcode_size[];
 
   p = allocproc();
-  
+
   initproc = p;
   if((p->pgdir = setupkvm()) == 0)
     panic("userinit: out of memory?");
@@ -262,6 +264,10 @@ exit(void)
   struct proc *p;
   int fd;
 
+  #if TRUE
+  procdump();
+  #endif
+
   if(curproc == initproc)
     panic("init exiting");
 
@@ -313,7 +319,7 @@ wait(void)
   struct proc *p;
   int havekids, pid;
   struct proc *curproc = myproc();
-  
+
   acquire(&ptable.lock);
   for(;;){
     // Scan through table looking for exited children.
@@ -350,6 +356,8 @@ wait(void)
         p->parent = 0;
         p->name[0] = 0;
         p->killed = 0;
+        p->pageFaultNum = 0;
+        p->pageOutNum = 0;
         p->state = UNUSED;
         release(&ptable.lock);
         return pid;
@@ -381,7 +389,7 @@ scheduler(void)
   struct proc *p;
   struct cpu *c = mycpu();
   c->proc = 0;
-  
+
   for(;;){
     // Enable interrupts on this processor.
     sti();
@@ -474,7 +482,7 @@ void
 sleep(void *chan, struct spinlock *lk)
 {
   struct proc *p = myproc();
-  
+
   if(p == 0)
     panic("sleep");
 
@@ -572,6 +580,8 @@ procdump(void)
   char *state;
   uint pc[10];
 
+  int used = 0; // Number of free pages in the system
+
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->state == UNUSED)
       continue;
@@ -579,12 +589,36 @@ procdump(void)
       state = states[p->state];
     else
       state = "???";
+
+    #if !(NONE)
+    int allocatedPages = 0;
+    int pagedOut = 0;
+    int protected = 0;
+    for (i = 0; i < MAX_PYSC_PAGES; i++) {
+      if (p->pyscPagesMeta[i].state == USED_P) {
+        allocatedPages++;
+        used++;
+      }
+    }
+    for (i = 0; i < MAX_TOTAL_PAGES - MAX_PYSC_PAGES; i++) {
+      if (p->diskPagesMeta[i].state == USED_P){
+        pagedOut++;
+        used++;
+      }
+    }
+    cprintf("%d %s %d %d %d %d %d %s", p->pid, state, allocatedPages, pagedOut,
+            protected, p->pageFaultNum, p->pageOutNum, p->name);
+    #else
     cprintf("%d %s %s", p->pid, state, p->name);
+    #endif
     if(p->state == SLEEPING){
       getcallerpcs((uint*)p->context->ebp+2, pc);
       for(i=0; i<10 && pc[i] != 0; i++)
         cprintf(" %p", pc[i]);
     }
     cprintf("\n");
-  }
+    }
+  #if !(NONE)
+  cprintf("%d / %d free pages in the system\n", NPROC * MAX_TOTAL_PAGES - used, NPROC * MAX_TOTAL_PAGES);
+  #endif
 }

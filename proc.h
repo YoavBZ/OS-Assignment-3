@@ -59,9 +59,11 @@ struct proc {
   char name[16];               // Process name (debugging)
 
   //Swap file. must initiate with create swap file
-  struct file *swapFile;      //page file
+  struct file *swapFile;       //page file
   struct page pyscPagesMeta[MAX_PYSC_PAGES]; // Physical pages meta-data
-  struct page diskPagesMeta[MAX_TOTAL_PAGES - MAX_PYSC_PAGES]; // Disk pages meta-data
+  struct page diskPagesMeta[MAX_TOTAL_PAGES - MAX_PYSC_PAGES]; // Disk pages meta-data]
+  int pageFaultNum;                //number of page fault
+  int pageOutNum;                //number of page fault
 };
 
 // Process memory is laid out contiguously, low addresses first:
