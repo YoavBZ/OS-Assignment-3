@@ -150,7 +150,7 @@ pmalloc() {
 
 int
 pfree(void *ap) {
-  if (!flags((char *) ap, PTE_W)) {
+  if (flags((char *) ap, PTE_W)) {
     return -1;
   }
   setflag(ap, PTE_W, 1);
