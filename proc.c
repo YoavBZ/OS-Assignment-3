@@ -13,7 +13,9 @@ struct {
 } ptable;
 
 //for fork func (copy swap file)
+#if !(NONE)
 static char buff[512];
+#endif
 
 static struct proc *initproc;
 
@@ -582,7 +584,9 @@ procdump(void)
   char *state;
   uint pc[10];
 
+  #if !(NONE)
   int used = 0; // Number of free pages in the system
+  #endif
 
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->state == UNUSED)
