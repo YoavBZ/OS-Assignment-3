@@ -24,6 +24,8 @@ char* sbrk(int);
 int sleep(int);
 int uptime(void);
 int yield(void);
+int flags(char *va, int flag);
+int setflag(char *va, int flag, int on);
 
 // ulib.c
 int stat(char*, struct stat*);

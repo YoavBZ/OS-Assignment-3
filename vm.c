@@ -16,6 +16,8 @@ struct file {
     struct inode *ip;
     uint off;
 };
+//for handle page fault func
+static char buff[PGSIZE];
 
 extern char data[];  // defined by kernel.ld
 pde_t *kpgdir;  // for use in scheduler()
@@ -322,6 +324,7 @@ void handlePageFault() {
   }
   memset(mem, 0, PGSIZE);
   uint va = PGROUNDDOWN(rcr2());
+
   if (mappages(p->pgdir, (char *) va, PGSIZE, V2P(mem), PTE_W | PTE_U | PTE_P) < 0) {
     cprintf("allocuvm out of memory (2)\n");
     deallocuvm(p->pgdir, p->sz + PGSIZE, p->sz);
@@ -343,7 +346,8 @@ void handlePageFault() {
   *pte &= ~PTE_PG;
   lcr3(V2P(myproc()->pgdir));
   // Reading from swap file
-  readFromSwapFile(p, (char *) va, diskIndex * PGSIZE, PGSIZE);
+  readFromSwapFile(p, buff, diskIndex * PGSIZE, PGSIZE);
+  memmove((void *) va, buff, PGSIZE);
   memset(&p->diskPagesMeta[diskIndex], 0, sizeof(struct page));
   int pageIndex = getFreePageIndex(0);
   if (pageIndex == -1) {
@@ -359,6 +363,20 @@ void handlePageFault() {
 int flags(char *va, int flag){
     pte_t *pte = walkpgdir(myproc()->pgdir, va, 0);
     return (*pte & flag) != 0;
+}
+
+int setflag(char *va, int flag, int on) {
+  pte_t *pte = walkpgdir(myproc()->pgdir, va, 0);
+  if (!pte){
+    return -1;
+  }
+  if (on) {
+    *pte |= flag;
+  } else {
+    *pte &= ~flag;
+  }
+  lcr3(V2P(myproc()->pgdir));
+  return 1;
 }
 
 // Allocate page tables and physical memory to grow process from oldsz to
@@ -395,7 +413,6 @@ allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
     struct proc *p = myproc();
     if (p->pid > 2) {
       int pagesNum = a / PGSIZE;
-      cprintf("allocuvm: pagenum: %d\n", pagesNum);
       int pageIndex;
       if (pagesNum <= MAX_PYSC_PAGES) {
         pageIndex = getFreePageIndex(0);
@@ -581,4 +598,3 @@ copyout(pde_t *pgdir, uint va, void *p, uint len)
 // Blank page.
 //PAGEBREAK!
 // Blank page.
-

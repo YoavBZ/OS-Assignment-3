@@ -12,6 +12,9 @@ struct {
   struct proc proc[NPROC];
 } ptable;
 
+//for fork func (copy swap file)
+static char buff[512];
+
 static struct proc *initproc;
 
 int nextpid = 1;
@@ -233,12 +236,11 @@ fork(void)
           np->diskPagesMeta[i].pgdir = np->pgdir;
       }
       //copy swap file
-      for (i = 0; i < MAX_TOTAL_PAGES - MAX_PYSC_PAGES ; i++){
+      for (i = 0; i < MAX_TOTAL_PAGES - MAX_PYSC_PAGES; i++){
           if (np->diskPagesMeta[i].state == USED_P) {
-              char buff[512];
-              for(int j = 0 ; j<PGSIZE; j+=512) {
-                readFromSwapFile(curproc, buff, i * PGSIZE+j, 512);
-                writeToSwapFile(np, buff, i * PGSIZE+j, 512);
+              for(int j = 0 ; j < PGSIZE; j += 512) {
+                readFromSwapFile(curproc, buff, i * PGSIZE + j, 512);
+                writeToSwapFile(np, buff, i * PGSIZE + j, 512);
               }
           }
       }

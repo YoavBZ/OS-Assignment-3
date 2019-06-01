@@ -142,6 +142,7 @@ struct segdesc {
 #define PTE_PS          0x080   // Page Size
 #define PTE_MBZ         0x180   // Bits must be zero
 #define PTE_PG          0x200   // Paged out to secondary storage
+#define PTE_PMLC        0x400   // Page allocated by pmalloc
 
 #define MAX_PYSC_PAGES 16
 #define MAX_TOTAL_PAGES 32
