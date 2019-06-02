@@ -362,6 +362,7 @@ wait(void)
         p->killed = 0;
         p->pageFaultNum = 0;
         p->pageOutNum = 0;
+        p->protectedNum = 0;
         p->state = UNUSED;
         release(&ptable.lock);
         return pid;
@@ -599,7 +600,6 @@ procdump(void)
     #if !(NONE)
     int allocatedPages = 0;
     int pagedOut = 0;
-    int protected = 0;
     for (i = 0; i < MAX_PYSC_PAGES; i++) {
       if (p->pyscPagesMeta[i].state == USED_P) {
         allocatedPages++;
@@ -613,7 +613,7 @@ procdump(void)
       }
     }
     cprintf("%d %s %d %d %d %d %d %s", p->pid, state, allocatedPages, pagedOut,
-            protected, p->pageFaultNum, p->pageOutNum, p->name);
+            p->protectedNum, p->pageFaultNum, p->pageOutNum, p->name);
     #else
     cprintf("%d %s %s", p->pid, state, p->name);
     #endif

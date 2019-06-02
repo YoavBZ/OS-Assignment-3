@@ -237,7 +237,7 @@ getFreePageIndex(int diskFlag){
     }
     struct page *pagesMeta = diskFlag ? p->diskPagesMeta : p->pyscPagesMeta;
     int pagesNum = diskFlag ? MAX_TOTAL_PAGES - MAX_PYSC_PAGES : MAX_PYSC_PAGES;
-    for (int i = 0; i < pagesNum; ++i) {
+    for (int i = 0; i < pagesNum; i++) {
         if (pagesMeta[i].state == UNUSED_P){
             return i;
         }
@@ -284,6 +284,10 @@ int swapOut() {
   pte_t *pte = walkpgdir(pyscPage->pgdir, (void *) pyscPage->virtualAddress, 0);
   int pagePyscAddress = PTE_ADDR(*pte);
   int diskIndex = getFreePageIndex(1);
+  if (diskIndex ==-1){
+    cprintf("no free disk index\n");
+    return -1;
+  }
   if (writeToSwapFile(p, (char *) pyscPage->virtualAddress, diskIndex * PGSIZE, PGSIZE) < 0) {
     return -1;
   }
@@ -301,21 +305,8 @@ int swapOut() {
 void handlePageFault() {
   struct proc *p = myproc();
   p->pageFaultNum++;
-  char *mem = kalloc();
-  if (mem == 0) {
-    cprintf("handlePageFault out of memory\n");
-    deallocuvm(p->pgdir, p->sz + PGSIZE, p->sz);
-    return;
-  }
-  memset(mem, 0, PGSIZE);
   uint va = PGROUNDDOWN(rcr2());
 
-  if (mappages(p->pgdir, (char *) va, PGSIZE, V2P(mem), PTE_W | PTE_U | PTE_P) < 0) {
-    cprintf("allocuvm out of memory (2)\n");
-    deallocuvm(p->pgdir, p->sz + PGSIZE, p->sz);
-    kfree(mem);
-    return;
-  }
   // Finding disk index of va (page fault)
   int diskIndex = -1;
   for (int i = 0; i < MAX_TOTAL_PAGES - MAX_PYSC_PAGES; i++) {
@@ -326,24 +317,53 @@ void handlePageFault() {
   if (diskIndex == -1) {
     panic("handle page fault: didn't find va in disk");
   }
+
+  // Reading from swap file
+  memset(buff,0,PGSIZE);
+  if (PGSIZE!=readFromSwapFile(p, buff, diskIndex * PGSIZE, PGSIZE)){
+    panic("handle page fault read");
+  }
+
+  p->diskPagesMeta[diskIndex].state=UNUSED_P;
+  pte_t * diskpgdir = p->diskPagesMeta[diskIndex].pgdir;
+
   // Turning off PTE_PG flag
-  pte_t *pte = walkpgdir(myproc()->pgdir, (const void *) va, 0);
+  pte_t *pte = walkpgdir(p->pgdir, (const void *) va, 0);
   *pte &= ~PTE_PG;
   lcr3(V2P(myproc()->pgdir));
-  // Reading from swap file
-  readFromSwapFile(p, buff, diskIndex * PGSIZE, PGSIZE);
-  memmove((void *) va, buff, PGSIZE);
-  memset(&p->diskPagesMeta[diskIndex], 0, sizeof(struct page));
-  int pageIndex = getFreePageIndex(0);
-  if (pageIndex == -1) {
+
+  int pyscIndex = getFreePageIndex(0);
+  if (pyscIndex == -1) {
     // Free space to the new page
-    pageIndex = swapOut();
+    pyscIndex = swapOut();
+    if (pyscIndex==-1){
+      panic("handle fault swap out fail");
+    }
   }
-  p->pyscPagesMeta[pageIndex].state = USED_P;
-  p->pyscPagesMeta[pageIndex].virtualAddress = va;
-  p->pyscPagesMeta[pageIndex].pgdir = p->pgdir;
-  p->pyscPagesMeta[pageIndex].order = pageOrder++;
+  p->pyscPagesMeta[pyscIndex].state = USED_P;
+  p->pyscPagesMeta[pyscIndex].virtualAddress = va;
+  p->pyscPagesMeta[pyscIndex].pgdir = diskpgdir;
+  p->pyscPagesMeta[pyscIndex].order = pageOrder++;
+
+  char *mem = kalloc();
+  if (mem == 0) {
+    cprintf("handlePageFault out of memory\n");
+    deallocuvm(p->pgdir, p->sz + PGSIZE, p->sz);
+    return;
+  }
+  memset(mem, 0, PGSIZE);
+
+  if (mappages(p->pgdir, (char *) va, PGSIZE, V2P(mem), PTE_W | PTE_U | PTE_P) < 0) {
+    cprintf("allocuvm out of memory (2)\n");
+    deallocuvm(p->pgdir, p->sz + PGSIZE, p->sz);
+    kfree(mem);
+    return;
+  }
+
+  memmove((void *) va, buff, PGSIZE);
+  lcr3(V2P(myproc()->pgdir));
 }
+
 
 int flags(char *va, int flag){
     pte_t *pte = walkpgdir(myproc()->pgdir, va, 0);
@@ -356,8 +376,14 @@ int setflag(char *va, int flag, int on) {
     return -1;
   }
   if (on) {
+    if (flag == PTE_W && !(*pte & PTE_W)){
+      myproc()->protectedNum--;
+    }
     *pte |= flag;
   } else {
+    if (flag == PTE_W && (*pte & PTE_W)){
+      myproc()->protectedNum++;
+    }
     *pte &= ~flag;
   }
   lcr3(V2P(myproc()->pgdir));

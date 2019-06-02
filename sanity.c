@@ -14,24 +14,43 @@ void systemTest() {
   printf(0, "Finished system testings!\n");
 }
 
-// ------------------------ System Test -------------------------
+// ------------------------ pmalloc Test -------------------------
 
 void pmallocTest() {
   printf(0, "Testing pmalloc\n");
   void *x = pmalloc();
-  void *x1 = pmalloc();
-  void *x2 = pmalloc();
-  printf(1, "%d\n", pfree(x));
-  printf(1, "%d\n", pfree(x1));
-  printf(1, "%d\n", pfree(x2));
-  printf(0, "Finished pmalloc testings!\n");
+  if (!pfree(x)){
+    printf(0, "pfree fail\n");
+  }  printf(0, "Finished pmalloc testings!\n");
 }
+// ------------------------ protect Test -------------------------
 
+void protectTest() {
+  printf(0, "Testing protect\n");
+  void *x = pmalloc();
+  if (!protect_page(x)){
+     printf(0,"protect test1 - fail\n");
+  }
+  if (!pfree(x)){
+    printf(0, "pfree fail\n");
+  }
+
+  void *y = malloc(3);
+  if (protect_page(y) != -1){
+    printf(0,"protect test2 - fail\n");
+  }
+  free(y);
+  printf(0, "Finished protect testings!\n");
+}
 int main() {
   // System Test
    systemTest();
 
-  // Test
+  // pmalloc Test
   pmallocTest();
+
+  // Protect Test
+  protectTest();
+
   exit();
 }

@@ -57,7 +57,7 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
-
+  int protectedNum;
   //Swap file. must initiate with create swap file
   struct file *swapFile;       //page file
   struct page pyscPagesMeta[MAX_PYSC_PAGES]; // Physical pages meta-data
