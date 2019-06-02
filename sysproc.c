@@ -103,7 +103,7 @@ sys_flags(void)
   char *va;
   int flag;
 
-  if(argptr(0, &va, sizeof(va)) < 0 || argint(0, &flag) < 0)
+  if(argptr(0, &va, sizeof(va)) < 0 || argint(1, &flag) < 0)
     return -1;
   return flags(va, flag);
 }
@@ -115,7 +115,7 @@ sys_setflag(void)
   int flag;
   int on;
 
-  if(argptr(0, &va, sizeof(va)) < 0 || argint(0, &flag) < 0 || argint(0, &on) < 0)
+  if(argptr(0, &va, sizeof(va)) < 0 || argint(1, &flag) < 0 || argint(2, &on) < 0)
     return -1;
   return setflag(va, flag, on);
 }

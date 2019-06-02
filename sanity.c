@@ -16,11 +16,15 @@ void systemTest() {
 
 // ------------------------ System Test -------------------------
 
-void sbrkTest() {
-  printf(0, "Testing sbrk()\n");
-  sbrk(0);
-  sbrk(1);
-  printf(0, "Finished sbrk testings!\n");
+void pmallocTest() {
+  printf(0, "Testing pmalloc\n");
+  void *x = pmalloc();
+  void *x1 = pmalloc();
+  void *x2 = pmalloc();
+  printf(1, "%d\n", pfree(x));
+  printf(1, "%d\n", pfree(x1));
+  printf(1, "%d\n", pfree(x2));
+  printf(0, "Finished pmalloc testings!\n");
 }
 
 int main() {
@@ -28,6 +32,6 @@ int main() {
    systemTest();
 
   // Test
-  sbrkTest();
+  pmallocTest();
   exit();
 }

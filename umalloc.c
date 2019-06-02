@@ -116,9 +116,9 @@ pmalloc() {
       setflag((char *) (p + 1), PTE_PMLC, 1);
       return (void *) (p + 1);
     }
-    if (p->s.size > nunits && (((Header *)PGROUNDUP((uint)(p+1)) + PGSIZE <= p + p->s.size) || isAligned(p+1))){
+    if (p->s.size > nunits && (((Header *)PGROUNDUP((uint)(p+1)) + (nunits - 1) <= p + p->s.size) || isAligned(p+1))){
       // in the end of the block
-      if (isAligned(p->s.size + p - PGSIZE)) {
+      if (isAligned(p->s.size + p - (nunits - 1))) {
         p->s.size -= nunits;
         p += p->s.size;
         p->s.size = nunits;
@@ -150,7 +150,7 @@ pmalloc() {
 
 int
 pfree(void *ap) {
-  if (flags((char *) ap, PTE_W)) {
+  if (!flags((char *) ap, PTE_PMLC)) {
     return -1;
   }
   setflag(ap, PTE_W, 1);
