@@ -246,39 +246,26 @@ getFreePageIndex(int diskFlag){
 }
 
 int getPyscIndex() {
-  struct proc *p = myproc();
-  int firstUsed = -1;
-  for (int i = 0; i < MAX_PYSC_PAGES; i++) {
-    if (p->pyscPagesMeta[i].state == USED_P) {
-      firstUsed = i;
-      break;
-    }
-  }
-  if (firstUsed == -1) {
-    panic("No used pages in physical memory");
-  }
 #if LIFO
-  cprintf("LIFO\n");
-  int maxIndex = firstUsed;
+  struct proc *p = myproc();
+  int maxIndex = 0;
   for (int i = 0; i < MAX_PYSC_PAGES; i++){
       if (p->pyscPagesMeta[i].state == USED_P && p->pyscPagesMeta[i].order > p->pyscPagesMeta[maxIndex].order){
           maxIndex = i;
       }
   }
   return maxIndex;
-#endif
-#if SCFIFO
-  cprintf("SCFIFO\n");
-  int minIndex = firstUsed;
+#elif SCFIFO
+  struct proc *p = myproc();
+  int minIndex = 0;
   while (1) {
       for (int i = 0; i < MAX_PYSC_PAGES; i++) {
           if (p->pyscPagesMeta[i].state == USED_P && p->pyscPagesMeta[i].order < p->pyscPagesMeta[minIndex].order) {
               minIndex = i;
           }
       }
-      pte_t *pte = walkpgdir(p->pgdir, (const void *) p->pyscPagesMeta[minIndex].virtualAddress, 0);
-      if (*pte & PTE_A){
-          *pte &= ~PTE_A;
+      if (flags((char *) p->pyscPagesMeta[minIndex].virtualAddress, PTE_A)){
+          setflag((char *) p->pyscPagesMeta[minIndex].virtualAddress, PTE_A, 0);
           p->pyscPagesMeta[minIndex].order = pageOrder++;
       } else{
           break;
@@ -290,7 +277,6 @@ int getPyscIndex() {
 }
 
 int swapOut() {
-  cprintf("swapOut\n");
   int pyscIndex = getPyscIndex();
   struct proc *p = myproc();
   p->pageOutNum++;
@@ -313,7 +299,6 @@ int swapOut() {
 }
 
 void handlePageFault() {
-  cprintf("handlePageFault\n");
   struct proc *p = myproc();
   p->pageFaultNum++;
   char *mem = kalloc();
@@ -412,11 +397,8 @@ allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
     // Skipping init & shell processes
     struct proc *p = myproc();
     if (p->pid > 2) {
-      int pagesNum = a / PGSIZE;
-      int pageIndex;
-      if (pagesNum <= MAX_PYSC_PAGES) {
-        pageIndex = getFreePageIndex(0);
-      } else {
+      int pageIndex = getFreePageIndex(0);
+      if (pageIndex == -1) {
         // Free space to the new page
         pageIndex = swapOut();
       }
@@ -527,7 +509,7 @@ copyuvm(pde_t *pgdir, uint sz)
         if (!new_pte_t){
             panic("copyuvm: new pte_t wasn't found");
         }
-        *new_pte_t = ((*new_pte_t| PTE_PG) & ~PTE_P) & PTE_FLAGS(*new_pte_t);
+        *new_pte_t = ((*new_pte_t| PTE_PG) & ~PTE_P);
         lcr3(V2P(myproc()->pgdir));
         continue;
     }

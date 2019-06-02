@@ -78,14 +78,14 @@ trap(struct trapframe *tf)
     lapiceoi();
     break;
   case T_PGFLT:
-    if (flags((char*) rcr2(), PTE_W)) {
+    if (!flags((char*) rcr2(), PTE_W)) {
       tf->trapno = T_GPFLT;
     }
     #if !(NONE)
     if (myproc() && myproc()->pid > 2 && flags((char *) rcr2(), PTE_PG)){
       handlePageFault();
+      break;
     }
-    break;
     #endif
 
   //PAGEBREAK: 13
